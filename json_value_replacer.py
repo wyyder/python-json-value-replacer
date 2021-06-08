@@ -1,5 +1,5 @@
-import json
 import sys
+import json
 from pymongo import MongoClient
 
 MONGO_URL = "mongodb://localhost:27017"
@@ -19,13 +19,30 @@ def is_document_exist(email: str):
     return False
 
 
+def get_last_number_and_increment():
+    collection_name = 'settings'
+    collections = get_mongo_collection(collection_name=collection_name)
+    query = {'id': "number"}
+    doc = collections.find_one(filter=query)
+    if doc:
+        last_number = doc['number']
+        new_doc = {"$set": {"number": last_number + 1}}
+        last_number = doc['number']
+        get_mongo_collection(collection_name=collection_name).update_one(filter=query, update=new_doc)
+    else:
+        last_number = 1
+        doc = {'id': "number", "number": last_number + 1}
+        get_mongo_collection(collection_name=collection_name).insert_one(document=doc)
+    return last_number
+
+
 def get_document(email: str):
     query = {'email': email}
     return get_mongo_collection().find_one(filter=query)
 
 
 def get_document_id(email: str):
-    return str(get_document(email=email)['_id'])
+    return str(get_document(email=email)['id'])
 
 
 def update__db_replace_with_id_generate_new_result(file_name: str):
@@ -36,11 +53,10 @@ def update__db_replace_with_id_generate_new_result(file_name: str):
     new_data = {}
     for email in data:
         # ID Fetch
-        email_id = ""
         if is_document_exist(email=email):
             email_id = get_document_id(email)
         else:
-            doc = {'email': email}
+            doc = {'email': email, "id": get_last_number_and_increment()}
             get_mongo_collection().insert_one(document=doc)
             email_id = get_document_id(email)
 
